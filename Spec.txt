@@ -1,0 +1,278 @@
+Ants Virtual Machine Specification
+==================================
+
+
+Instruction format
+------------------
+
+    - Each instruction is composed of four 16-bit values: opcode, result,
+      operand 1, and operand 2 (corresponding to the constants OPCODE_OFFSET,
+      RESULT_OFFSET, OP1_OFFSET, and OP2_OFFSET in the AntsVm class).
+
+    - Each operand of an instruction can be either a variable or a constant.
+      Constant operands are distinguished from variable operands by testing
+      the OP1_CONSTANT / OP2_CONSTANT bit.  If this bit is set, the respective
+      operand is interpreted as a constant value; otherwise, it is interpreted
+      as a variable address.
+
+    - Variables contain values of type 'short'.  Each variable is addressed by
+      a non-negative 'short' value; the first variable has address 0, the
+      second variable has address 1, etc.  A program can use at most (2^15 -
+      1) variables.
+
+    - A program is encoded as an array of 'short' values.  Each instruction is
+      addressed by a non-negative 'short' value; the first instruction has
+      address 0, the second instruction has address 1, etc.
+
+
+Predefined variables
+--------------------
+
+    Variable             Address
+    ----------------------------
+    $MyBackpackSize         0
+    $MyFood                 1
+    $MyStones               2
+    $MyEnergy               3
+    $MyTribe                4
+
+
+Predefined tribe constants
+--------------------------
+
+    Tribe          Id
+    -----------------
+    #Red            0
+    #Green          1
+    #Blue           2
+    #Yellow         3
+    #Any            4       (any tribe)
+    #Other          5       (any tribe other than the own tribe)
+    #Our            6       (the own tribe)
+
+
+Predefined direction constants
+------------------------------
+
+    Direction      Id
+    -----------------
+    #North          0
+    #NorthEast      1
+    #East           2
+    #SouthEast      3
+    #South          4
+    #SouthWest      5
+    #West           6
+    #NorthWest      7
+    #Here           8       (current position)
+
+    - The direction #Here is only valid with the following instructions:
+      MarkValue, SetMark, ClearMark
+
+
+Environment querying instructions
+---------------------------------
+
+    Stones( <direction>, $1 )
+    Obstacles( <direction>, $1 )
+    Food( <direction>, $1 )
+    Ants( <direction>, <tribe>, $1 )
+    Marks( <direction>, <tribe>, $1 )
+
+    - These instructions test for the presence of environment objects (stones,
+      obstacles, food, other ants, marks) in a 90 degree-wide area in the
+      specified direction.
+
+    - For every cell in the tested area, each instruction sets a single bit
+      in the result variable $1 if a queried object is present on the cell;
+      all other bits of $1 are cleared.
+
+    - The following images show the bit positions 1..F (1 = least significant
+      bit, + = ant position) that correspond to each tested cell.  Note that,
+      relative to the direction of the ant, the bit position corresponding to
+      each cell is constant.
+
+        9 A B C D E F       . . . 9 A B C       . . . . . . 9
+        . 4 5 6 7 8 .       . . . 4 5 6 D       . . . . . 4 A
+        . . 1 2 3 . .       . . . 1 2 7 E       . . . . 1 5 B
+        . . . + . . .       . . . + 3 8 F       . . . + 2 6 C
+        . . . . . . .       . . . . . . .       . . . . 3 7 D
+        . . . . . . .       . . . . . . .       . . . . . 8 E
+        . . . . . . .       . . . . . . .       . . . . . . F
+            North             NorthEast              East
+
+        . . . . . . .       . . . . . . .       . . . . . . .
+        . . . . . . .       . . . . . . .       . . . . . . .
+        . . . . . . .       . . . . . . .       . . . . . . .
+        . . . + 1 4 9       . . . + . . .       F 8 3 + . . .
+        . . . 3 2 5 A       . . 3 2 1 . .       E 7 2 1 . . .
+        . . . 8 7 6 B       . 8 7 6 5 4 .       D 6 5 4 . . .
+        . . . F E D C       F E D C B A 9       C B A 9 . . .
+          SouthEast             South             SouthWest
+
+        F . . . . . .       C D E F . . .
+        E 8 . . . . .       B 6 7 8 . . .
+        D 7 3 . . . .       A 5 2 3 . . .
+        C 6 2 + . . .       9 4 1 + . . .
+        B 5 1 . . . .       . . . . . . .
+        A 4 . . . . .       . . . . . . .
+        9 . . . . . .       . . . . . . .
+            West              NorthWest
+
+    FoodAmount( <direction>, $1 )
+
+    - Return in $1 the amount of food on the cell neighboring the ant's
+      position in the specified direction.
+
+    StoneNumber( <direction>, $1 )
+
+    - Return in $1 the number of stones on the cell neighboring the ant's
+      position in the specified direction.
+
+    MarkValue( <direction>, <tribe>, $1 )
+
+    - Return in $1 the value of the mark that ants of the specified tribe have
+      set on the cell at the ant's position (if <direction> = #Here) or on the
+      cell neighboring the ant's position in the specified direction.
+
+
+Action instructions
+-------------------
+
+    Move( <direction>, $1 )
+
+    - Move the ant one cell in the specified direction.  If the ant cannot
+      move because there is an obstacle (stones, food, other ant, water) on
+      that cell, $1 is set to a value != 0.
+
+    GetStones( <direction>, <number>, $1 )
+
+    - Pick up the specified number of stones from the cell neighboring the
+      ant's position in the specified direction.  If the specified number of
+      stones is not available on the cell or there is not enough free space in
+      the ant's backpack, $1 is set to a value != 0.
+
+    GetFood( <direction>, <amount>, $1 )
+
+    - Pick up the specified amount of food from the cell neighboring the ant's
+      position in the specified direction.  If the specified amount of food is
+      not available on the cell or there is not enough free space in the ant's
+      backpack, $1 is set to a value != 0.
+
+    PutStones( <direction>, <number>, $1 )
+
+    - Put the specified number of stones on the cell neighboring the ant's
+      position in the specified direction.  If the cell is blocked or the
+      ant's backpack does not contain the specified number of stones, $1 is
+      set to a value != 0.
+
+    PutFood( <direction>, <amount>, $1 )
+
+    - Put the specified amount of food on the cell neighboring the ant's
+      position in the specified direction.  If the cell is blocked or the
+      ant's backpack does not contain the specified amount of food, $1 is set
+      to a value != 0.
+
+    SetMark( <direction>, <value> )
+
+    - Set the own tribe's mark on the cell at the ant's position (if
+      <direction> = #Here) or on the cell neighboring the ant's position in
+      the specified direction.  Every tribe sets its own mark on each cell.
+
+    ClearMark( <direction> )
+
+    - Clear the own tribe's mark on the cell at the ant's position (if
+      <direction> = #Here) or on the cell neighboring the ant's position in
+      the specified direction.
+
+
+Arithmetic and logical instructions
+-----------------------------------
+
+    Copy( $1, $2 )              or $2 = $1
+
+    Or( $1, $2, $3 )            or $3 = $1 | $2
+    And( $1, $2, $3 )           or $3 = $1 & $2
+    Xor( $1, $2, $3 )           or $3 = $1 ^ $2
+    Not( $1, $2 )               or $2 = ! $1
+
+    BitsTrue( $1, $2 )
+    BitsFalse( $1, $2 )
+
+    Add( $1, $2, $3 )           or $3 = $1 + $2
+    Sub( $1, $2, $3 )           or $3 = $1 - $2
+    Mult( $1, $2, $3 )          or $3 = $1 * $2
+    Div( $1, $2, $3 )           or $3 = $1 / $2
+    Neg( $1, $2 )               or $2 = - $1
+
+    Equal( $1, $2, $3 )         or $3 = $1 == $2
+    NotEqual( $1, $2, $3 )      or $3 = $1 != $2
+    Less( $1, $2, $3 )          or $3 = $1 < $2
+    LessEqual( $1, $2, $3 )     or $3 = $1 <= $2
+    Greater( $1, $2, $3 )       or $3 = $1 > $2
+    GreaterEqual( $1, $2, $3 )  or $3 = $1 >= $2
+
+
+Control flow instructions
+-------------------------
+
+    Goto( <address> )
+    GotoIf( <address>, $1 )
+
+
+Queen ant instruction
+---------------------
+
+    MakeAnt( <type> )
+
+
+Assembly file format
+====================
+
+    DefineAnt <ant name> ( <id> ):
+
+    ;
+    ;  Description
+    ;
+
+    Configuration:
+
+        $MyBackpackSize = <backpack-size>
+
+    Program:
+
+        <program>
+
+
+Assembly grammar (incomplete)
+=============================
+
+    identifier = ("A".."Z"|"a".."z"|"_")("A".."Z"|"a".."z"|"_"|"0".."9")*
+    label = "%"identifier
+    variable = "$"identifier
+    number = ("0".."9")+
+
+    ant = header configuration program eof
+    header = "DefineAnt" identifier "(" number ")" ":"
+    configuration = "Configuration" ":" "$MyBackpackSize" "=" number
+    program = "Program" ":" instruction-list
+    instruction-list = ( [label ":"] instruction )*
+    instruction = assignment-instr | functional-instr
+    op-value = ( variable | constant | label | number )
+    assignment-instr = variable "=" copy-expr | or-expr | and-expr | xor-expr
+        | not-expr | add-expr | sub-expr | mult-expr | div-expr | neg-expr
+        | equal-expr | not-equal-expr | less-expr | less-equal-expr
+        | greater-expr | greater-equal-expr
+    copy-expr = variable
+    or-expr = op-value "|" op-value
+    and-expr = op-value "&" op-value
+    xor-expr = op-value "^" op-value
+    not-expr = "!" op-value
+    add-expr = op-value "+" op-value
+    sub-expr = op-value "-" op-value
+    mult-expr = op-value "*" op-value
+    div-expr = op-value "/" op-value
+    neg-expr = "-" op-value
+    functional-instr = make-ant-expr | ...
+    make-ant-expr = "MakeAnt" "(" op-value ")"
+    ...
