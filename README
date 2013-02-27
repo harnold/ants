@@ -1,0 +1,18 @@
+"Ants" provides the foundation for simulating swarms of simple robots.
+This program has been used to investigate swarm-based exploration and
+communication strategies for robots with extremely limited abilities
+operating in an unknown environment, inspired by the behavior of
+natural ant colonies.
+
+This repository contains a compiler for translating "ant programs"
+written in an assembly-like language to a binary format, a decompiler
+for translating binary ants back to source form, and a virtual machine
+for setting-up a simulation environment and executing the simulation.
+
+The original target platform for this program was Java 2 SE, v1.3.
+The code has since been updated to make use of the features introduced
+in recent Java versions; therefore you need Java SE 7 to compile and
+run it.
+
+The files in this repository are licensed under the conditions specified
+in the accompanying LICENSE file.
