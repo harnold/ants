@@ -156,7 +156,7 @@ public class AntsCompiler {
                 case COLON:         s = "':'"; break;
                 case COMMA:         s = "','"; break;
                 case ASSIGN:        s = "'='"; break;
-                default:                        s = "something else"; break;
+                default:            s = "something else"; break;
             }
 
             throw new SyntaxError(lexer, "Expected " + s + ".");
